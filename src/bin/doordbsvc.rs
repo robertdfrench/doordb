@@ -21,7 +21,7 @@ fn main() {
         .expect("Faily to install door");
 
     // Keep the main thread alive
-    println!("Door server is running...");
+    println!("DoorDB server is running...");
     loop {
         std::thread::park();
     }
