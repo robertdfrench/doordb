@@ -1,7 +1,7 @@
 banner=printf "\033[35m"; banner $@; print "\033[0m";
 
-all: start
-	make test || (make stop && echo "Tests failed" && exit 1)
+test: start
+	make check || (make stop && echo "Tests failed" && exit 1)
 	make stop
 
 start:
@@ -10,7 +10,7 @@ start:
 	cargo run --bin doordbd &; echo $$! > /tmp/doordb.pid
 	sleep 1
 
-test:
+check:
 	@$(banner)
 	cargo run --bin doordb create a
 	cargo run --bin doordb get a

@@ -3,13 +3,13 @@ use doors::UCred;
 use doors::illumos::door_h;
 use serde_json;
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use libc;
 
 
 fn main() {
-    // Create a shared BTreeMap protected by a Mutex
-    let map = Arc::new(Mutex::new(BTreeMap::<String, Node>::new()));
+    // Create a shared BTreeMap protected by a RwLock
+    let map = Arc::new(RwLock::new(BTreeMap::<String, Node>::new()));
 
     // Convert the Arc to a raw pointer and pass it as the cookie
     let map_ptr = Arc::into_raw(map);
@@ -41,7 +41,7 @@ extern "C" fn server_proc(
     _n_desc: libc::c_uint
 ) {
     // Reconstruct the Arc from the raw pointer
-    let map_arc = unsafe { Arc::from_raw(cookie as *const Mutex<BTreeMap<String, Node>>) };
+    let map_arc = unsafe { Arc::from_raw(cookie as *const RwLock<BTreeMap<String, Node>>) };
 
     // Clone the Arc to increase the reference count
     let map_arc_clone = Arc::clone(&map_arc);
@@ -60,61 +60,65 @@ extern "C" fn server_proc(
     let client_uid = client_credentials.euid().unwrap();
 
     // Handle the query and interact with the shared map
-    let result = {
-        let mut map = map_arc_clone.lock().unwrap();
+    let result = match query.method {
+        doordb::Method::Get => {
+            let map = map_arc_clone.read().unwrap();
 
-        match query.method {
-            doordb::Method::Get => {
-                if let Some(node) = map.get(&query.key) {
-                    if node.owner == client_uid {
+            if let Some(node) = map.get(&query.key) {
+                if node.owner == client_uid {
+                    Ok(node.count)
+                } else {
+                    Err("EPERM".to_string())
+                }
+            } else {
+                Err("Key not found".to_string())
+            }
+        }
+        doordb::Method::Create => {
+            let mut map = map_arc_clone.write().unwrap();
+
+            if map.contains_key(&query.key) {
+                Err("Key already exists".to_string())
+            } else {
+                let node = Node {
+                    owner: client_uid,
+                    count: 0
+                };
+                map.insert(query.key, node);
+                Ok(0)
+            }
+        }
+        doordb::Method::Delete => {
+            let mut map = map_arc_clone.write().unwrap();
+
+            if let Some(node) = map.get(&query.key) {
+                if node.owner == client_uid {
+                    if let Some(node) = map.remove(&query.key) {
                         Ok(node.count)
                     } else {
-                        Err("EPERM".to_string())
+                        // We have an exclusive lock and just confirmed the existence of this
+                        // key, so if we can't delete it now, something is very bad.
+                        unreachable!();
                     }
                 } else {
-                    Err("Key not found".to_string())
+                    Err("EPERM".to_string())
                 }
+            } else {
+                Err("Key not found".to_string())
             }
-            doordb::Method::Create => {
-                if map.contains_key(&query.key) {
-                    Err("Key already exists".to_string())
+        }
+        doordb::Method::Increment => {
+            let mut map = map_arc_clone.write().unwrap();
+
+            if let Some(node) = map.get_mut(&query.key) {
+                if node.owner == client_uid {
+                    node.count += 1;
+                    Ok(node.count)
                 } else {
-                    let node = Node {
-                        owner: client_uid,
-                        count: 0
-                    };
-                    map.insert(query.key, node);
-                    Ok(0)
+                    Err("EPERM".to_string())
                 }
-            }
-            doordb::Method::Delete => {
-                if let Some(node) = map.get(&query.key) {
-                    if node.owner == client_uid {
-                        if let Some(node) = map.remove(&query.key) {
-                            Ok(node.count)
-                        } else {
-                            // We have an exclusive lock and just confirmed the existence of this
-                            // key, so if we can't delete it now, something is very bad.
-                            unreachable!();
-                        }
-                    } else {
-                        Err("EPERM".to_string())
-                    }
-                } else {
-                    Err("Key not found".to_string())
-                }
-            }
-            doordb::Method::Increment => {
-                if let Some(node) = map.get_mut(&query.key) {
-                    if node.owner == client_uid {
-                        node.count += 1;
-                        Ok(node.count)
-                    } else {
-                        Err("EPERM".to_string())
-                    }
-                } else {
-                    Err("Key not found".to_string())
-                }
+            } else {
+                Err("Key not found".to_string())
             }
         }
     };
