@@ -1,3 +1,6 @@
+use anyhow::anyhow;
+
+use anyhow::Result;
 use serde_derive::{Deserialize, Serialize};
 use serde_json;
 use doors;
@@ -10,9 +13,9 @@ pub struct Query {
 
 #[derive(Serialize, Deserialize)]
 pub enum Method {
-    Get,
     Create,
     Delete,
+    Get,
     Increment,
 }
 
@@ -28,12 +31,15 @@ impl Client {
         Self{ door }
     }
 
-    pub fn submit_query(&self, method: Method, key: String) -> Result<u8, String> {
-        let query = Query { key, method };
+    pub fn submit_query(&self, method: Method, key: &str) -> Result<u8> {
+        let query = Query { key: key.to_string(), method };
         let query_bytes = serde_json::to_vec(&query).expect("Failed to serialize query");
         let response = self.door.call_with_data(&query_bytes).expect("Door call failed");
         let response: Result<u8, String> =
             serde_json::from_slice(response.data()).expect("Failed to deserialize response");
-        response
+        match response {
+            Ok(value) => Ok(value),
+            Err(context) => Err(anyhow!(context))
+        }
     }
 }
