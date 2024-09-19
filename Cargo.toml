@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.17", features = ["derive"] }
-doors = "0.8.1"
+doors = { path = "../rusty-doors/doors" }
 libc = "0.2.158"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_derive = "1.0.210"
