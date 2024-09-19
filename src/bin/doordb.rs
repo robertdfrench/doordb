@@ -58,7 +58,7 @@ impl CounterAction {
 
     fn create(key: &str, client: Client) -> Result<()> {
         let method = Method::Create;
-        let value = client.submit_query(method, key)?;
+        let value = client.counter_query(method, key)?;
         println!("{}", value);
 
         Ok(())
@@ -66,7 +66,7 @@ impl CounterAction {
 
     fn delete(key: &str, client: Client) -> Result<()> {
         let method = Method::Delete;
-        let value = client.submit_query(method, key)?;
+        let value = client.counter_query(method, key)?;
         println!("{}", value);
 
         Ok(())
@@ -74,7 +74,7 @@ impl CounterAction {
 
     fn read(key: &str, client: Client) -> Result<()> {
         let method = Method::Get;
-        let value = client.submit_query(method, key)?;
+        let value = client.counter_query(method, key)?;
         println!("{}", value);
 
         Ok(())
@@ -82,7 +82,7 @@ impl CounterAction {
 
     fn increment(key: &str, client: Client) -> Result<()> {
         let method = Method::Increment;
-        let value = client.submit_query(method, key)?;
+        let value = client.counter_query(method, key)?;
         println!("{}", value);
 
         Ok(())
