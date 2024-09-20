@@ -47,6 +47,51 @@ impl Client {
         Self{ door }
     }
 
+    pub fn text_delete(&self, key: &str) -> Result<String> {
+        let query = Query::Text(TextMethod::Delete{key: key.to_string()});
+        let query_bytes = serde_json::to_vec(&query).expect("Failed to serialize query");
+        let response = self.door.call_with_data(&query_bytes).expect("Door call failed");
+        let response: Result<Response, String> =
+            serde_json::from_slice(response.data()).expect("Failed to deserialize response");
+        match response {
+            Ok(r) => match r {
+                Response::Text(value) => Ok(value),
+                _ => Err(anyhow!("Response from server was not a text")),
+            },
+            Err(context) => Err(anyhow!(context))
+        }
+    }
+
+    pub fn text_read(&self, key: &str) -> Result<String> {
+        let query = Query::Text(TextMethod::Read{key: key.to_string()});
+        let query_bytes = serde_json::to_vec(&query).expect("Failed to serialize query");
+        let response = self.door.call_with_data(&query_bytes).expect("Door call failed");
+        let response: Result<Response, String> =
+            serde_json::from_slice(response.data()).expect("Failed to deserialize response");
+        match response {
+            Ok(r) => match r {
+                Response::Text(value) => Ok(value),
+                _ => Err(anyhow!("Response from server was not a text")),
+            },
+            Err(context) => Err(anyhow!(context))
+        }
+    }
+
+    pub fn text_write(&self, key: &str, value: &str) -> Result<String> {
+        let query = Query::Text(TextMethod::Write{key: key.to_string(), value: value.to_string()});
+        let query_bytes = serde_json::to_vec(&query).expect("Failed to serialize query");
+        let response = self.door.call_with_data(&query_bytes).expect("Door call failed");
+        let response: Result<Response, String> =
+            serde_json::from_slice(response.data()).expect("Failed to deserialize response");
+        match response {
+            Ok(r) => match r {
+                Response::Text(value) => Ok(value),
+                _ => Err(anyhow!("Response from server was not a text")),
+            },
+            Err(context) => Err(anyhow!(context))
+        }
+    }
+
     pub fn counter_query(&self, method: Method, key: &str) -> Result<u64> {
         let query = Query::Counter { key: key.to_string(), method };
         let query_bytes = serde_json::to_vec(&query).expect("Failed to serialize query");

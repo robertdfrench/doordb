@@ -97,23 +97,40 @@ enum TextAction {
     Write {
         key: String,
         value: String
-    }
+    },
+    Delete {
+        key: String
+    },
 }
 
 impl TextAction {
     fn main(&self, client: Client) -> Result<()> {
         match self {
+            Self::Delete { key } => Self::delete(key, client),
             Self::Read { key } => Self::read(key, client),
             Self::Write { key, value } => Self::write(key, value, client),
         }
     }
 
-    fn read(_key: &str, _client: Client) -> Result<()> {
-        Err(anyhow::anyhow!("Not implemented")).context("Can't read text yet")
+    fn read(key: &str, client: Client) -> Result<()> {
+        let value = client.text_read(key)?;
+        println!("{}", value);
+
+        Ok(())
     }
 
-    fn write(_key: &str, _value: &str, _client: Client) -> Result<()> {
-        Err(anyhow::anyhow!("Not implemented")).context("Can't write text yet")
+    fn write(key: &str, value: &str, client: Client) -> Result<()> {
+        let value = client.text_write(key, value)?;
+        println!("{}", value);
+
+        Ok(())
+    }
+
+    fn delete(key: &str, client: Client) -> Result<()> {
+        let value = client.text_delete(key)?;
+        println!("{}", value);
+
+        Ok(())
     }
 }
 

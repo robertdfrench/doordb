@@ -33,7 +33,12 @@ fn main() {
 
 struct Node {
     owner: libc::uid_t,
-    count: u64
+    value: Value
+}
+
+enum Value {
+    Counter(u64),
+    Text(String),
 }
 
 extern "C" fn server_proc(
@@ -70,7 +75,10 @@ extern "C" fn server_proc(
 
                     if let Some(node) = map.get(&key) {
                         if node.owner == client_uid {
-                            Ok(Response::Counter(node.count))
+                            match node.value {
+                                Value::Counter(x) => Ok(Response::Counter(x)),
+                                _ => Err("Wrong type".to_string()),
+                            }
                         } else {
                             Err("EPERM".to_string())
                         }
@@ -84,12 +92,13 @@ extern "C" fn server_proc(
                     if map.contains_key(&key) {
                         Err("Key already exists".to_string())
                     } else {
+                        let zero = 0;
                         let node = Node {
                             owner: client_uid,
-                            count: 0
+                            value: Value::Counter(zero)
                         };
                         map.insert(key, node);
-                        Ok(Response::Counter(0))
+                        Ok(Response::Counter(zero))
                     }
                 }
                 doordb::Method::Delete => {
@@ -97,12 +106,18 @@ extern "C" fn server_proc(
 
                     if let Some(node) = map.get(&key) {
                         if node.owner == client_uid {
-                            if let Some(node) = map.remove(&key) {
-                                Ok(Response::Counter(node.count))
-                            } else {
-                                // We have an exclusive lock and just confirmed the existence of this
-                                // key, so if we can't delete it now, something is very bad.
-                                unreachable!();
+                            match node.value {
+                                Value::Counter(count) => {
+                                    if let Some(_node) = map.remove(&key) {
+                                        Ok(Response::Counter(count))
+                                    } else {
+                                        // We have an exclusive lock and just confirmed the
+                                        // existence of this key, so if we can't delete it now,
+                                        // something is very bad.
+                                        unreachable!();
+                                    }
+                                },
+                                _ => Err("Wrong type".to_string())
                             }
                         } else {
                             Err("EPERM".to_string())
@@ -116,8 +131,13 @@ extern "C" fn server_proc(
 
                     if let Some(node) = map.get_mut(&key) {
                         if node.owner == client_uid {
-                            node.count += 1;
-                            Ok(Response::Counter(node.count))
+                            match &mut node.value {
+                                Value::Counter(count) => {
+                                    *count += 1;
+                                    Ok(Response::Counter(*count))
+                                },
+                                _ => Err("Wrong type".to_string())
+                            }
                         } else {
                             Err("EPERM".to_string())
                         }
@@ -128,9 +148,77 @@ extern "C" fn server_proc(
             }
         },
         Query::Text(method) => match method {
-            TextMethod::Delete{ key: _ } => Err("Not implemented".to_string()),
-            TextMethod::Read{ key: _ } => Err("Not implemented".to_string()),
-            TextMethod::Write{ key: _, value: _ } => Err("Not implemented".to_string()),
+            TextMethod::Delete{ key } => {
+                let mut map = map_arc_clone.write().unwrap();
+
+                if let Some(node) = map.get(&key) {
+                    if node.owner == client_uid {
+                        match &node.value {
+                            Value::Text(_) => {
+                                if let Some(node) = map.remove(&key) {
+                                    match node.value {
+                                        Value::Text(text) => {
+                                            Ok(Response::Text(text.clone()))
+                                        },
+                                        _ => unreachable!(),
+                                    }
+                                } else {
+                                    // We have an exclusive lock and just confirmed the
+                                    // existence of this key, so if we can't delete it now
+                                    // something is very bad.
+                                    unreachable!();
+                                }
+                            },
+                            _ => Err("Wrong type".to_string())
+                        }
+                    } else {
+                        Err("EPERM".to_string())
+                    }
+                } else {
+                    Err("Key not found".to_string())
+                }
+            },
+            TextMethod::Read{ key } => {
+                let map = map_arc_clone.read().unwrap();
+
+                if let Some(node) = map.get(&key) {
+                    if node.owner == client_uid {
+                        match &node.value {
+                            Value::Text(value) => Ok(Response::Text(value.to_string())),
+                            _ => Err("Wrong type".to_string())
+                        }
+                    } else {
+                        Err("EPERM".to_string())
+                    }
+                } else {
+                    Err("Key not found".to_string())
+                }
+            }
+            TextMethod::Write{ key, value } => {
+                let mut map = map_arc_clone.write().unwrap();
+
+                if let Some(node) = map.get_mut(&key) {
+                    if node.owner == client_uid {
+                        match &mut node.value {
+                            Value::Text(current) => {
+                                let old = current.clone();
+                                *current = value;
+                                Ok(Response::Text(old))
+                            },
+                            _ => Err("Wrong type".to_string()),
+                        }
+                    } else {
+                        Err("EPERM".to_string())
+                    }
+                } else {
+                    let node = Node {
+                        owner: client_uid,
+                        value: Value::Text(value),
+                    };
+                    map.insert(key, node);
+                    Ok(Response::Text("".to_string()))
+                }
+            }
         }
     };
 

@@ -16,13 +16,19 @@ start:
 
 check:
 	@$(banner)
-	cargo run --bin doordb counter create a
-	cargo run --bin doordb counter read a
-	cargo run --bin doordb counter increment a
-	cargo run --bin doordb counter read a
-	cargo run --bin doordb counter delete a
+	./target/debug/doordb counter create a | grep 0
+	./target/debug/doordb counter read a | grep 0
+	./target/debug/doordb counter increment a | grep 1
+	./target/debug/doordb counter read a | grep 1
+	./target/debug/doordb counter delete a | grep 1
 	sudo ./target/debug/doordb counter create b
-	cargo run --bin doordb counter read b 2>&1 | grep EPERM
+	./target/debug/doordb counter read b 2>&1 | grep EPERM
+	./target/debug/doordb text write c hello | grep -v '*'
+	./target/debug/doordb text read c | grep hello
+	./target/debug/doordb text write c bye | grep hello
+	./target/debug/doordb text read c | grep bye
+	./target/debug/doordb text delete c | grep bye
+	./target/debug/doordb text read c 2>&1 | grep "Key not found"
 
 stop:
 	@$(banner)
