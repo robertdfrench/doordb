@@ -1,7 +1,7 @@
 use doors::server::Door;
 use doors::UCred;
 use doors::illumos::door_h;
-use serde_json;
+use serde_cbor;
 use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
 use libc;
@@ -59,7 +59,7 @@ extern "C" fn server_proc(
 
     // Deserialize the Query object from data
     let data = unsafe { std::slice::from_raw_parts(argp as *const u8, arg_size) };
-    let query: doordb::Query = serde_json::from_slice(data).map_err(|e| {
+    let query: doordb::Query = serde_cbor::from_slice(data).map_err(|e| {
         eprintln!("Failed to deserialize query: {}", e);
         e
     }).unwrap();
@@ -223,7 +223,7 @@ extern "C" fn server_proc(
     };
 
     // Serialize the result to JSON
-    let response = serde_json::to_vec(&result).unwrap();
+    let response = serde_cbor::to_vec(&result).unwrap();
 
     // Return the response
     unsafe {
