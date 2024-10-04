@@ -6,29 +6,29 @@ test: build start
 
 build:
 	@$(banner)
-	cargo build --bin doordb
-	cargo build --bin doordbd
+	cargo build --bin client
+	cargo build --bin server
 
 start:
 	@$(banner)
-	cargo run --bin doordbd &; echo $$! > /tmp/doordb.pid
+	cargo run --bin server &; echo $$! > /tmp/doordb.pid
 	sleep 1
 
 check:
 	@$(banner)
-	./target/debug/doordb counter create a | grep 0
-	./target/debug/doordb counter read a | grep 0
-	./target/debug/doordb counter increment a | grep 1
-	./target/debug/doordb counter read a | grep 1
-	./target/debug/doordb counter delete a | grep 1
-	sudo ./target/debug/doordb counter create b
-	./target/debug/doordb counter read b 2>&1 | grep EPERM
-	./target/debug/doordb text write c hello | grep -v '*'
-	./target/debug/doordb text read c | grep hello
-	./target/debug/doordb text write c bye | grep hello
-	./target/debug/doordb text read c | grep bye
-	./target/debug/doordb text delete c | grep bye
-	./target/debug/doordb text read c 2>&1 | grep "Key not found"
+	./target/debug/client counter create a | grep 0
+	./target/debug/client counter read a | grep 0
+	./target/debug/client counter increment a | grep 1
+	./target/debug/client counter read a | grep 1
+	./target/debug/client counter delete a | grep 1
+	sudo ./target/debug/client counter create b
+	./target/debug/client counter read b 2>&1 | grep EPERM
+	./target/debug/client text write c hello | grep -v '*'
+	./target/debug/client text read c | grep hello
+	./target/debug/client text write c bye | grep hello
+	./target/debug/client text read c | grep bye
+	./target/debug/client text delete c | grep bye
+	./target/debug/client text read c 2>&1 | grep "Key not found"
 
 stop:
 	@$(banner)
