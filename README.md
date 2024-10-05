@@ -1,2 +1,4 @@
-# DoorDB
-*A fast key-value store for local processes*
+# LightShow
+*Interprocess Harmony*
+
+![logo.jpg](logo.jpg)
